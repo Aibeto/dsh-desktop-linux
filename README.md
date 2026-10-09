@@ -64,7 +64,7 @@ deb / rpm 的 `Maintainer:` / `Homepage:` 来自 `upstream/apps/desktop/.env.lin
 
 ### 硬性前提
 
-**必须用 pnpm 11。** 上游仓库声明 `packageManager: pnpm@11.7.0`，pnpm 11 会自己切到该版本；
+**必须用 pnpm 11。** 上游仓库声明 `packageManager: pnpm@11.28.5`，pnpm 11 会自己切到该版本；
 pnpm 9 会在 `pnpm install` 报 `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`。
 
 ## Arch 包
@@ -156,12 +156,6 @@ Arch 包只出未打包目录装进 `/opt/deepseek-harness-desktop`，`/usr/bin/
   Debian 13 与 Ubuntu 24.04+ `sudo apt install libfuse2t64`（Ubuntu 22.04 是 `libfuse2`）；
   或 `APPIMAGE_EXTRACT_AND_RUN=1 ./deepseek-harness-*.AppImage` 绕过（解包到 /tmp，多占约 1.2 G）。
   deb / rpm / Arch 包不受影响。
-- **Electron 版本比上游 lockfile 钉的高（44.4.5）。** 上游 `apps/desktop/package.json` 写的是
-  `^44.0.0`，caret 本来就允许；但它的 lockfile 把解析钉死在 44.0.0，而那个版本的**托盘项在 KDE 与
-  GNOME 下都注册不上**（上游回归 [electron#53213](https://github.com/electron/electron/issues/53213)，
-  修复 [electron#53214](https://github.com/electron/electron/pull/53214) 直到 2026-08-26 才合并，
-  而 44.0.0 发布于 08-25）。补丁 `0014` 把 lockfile 解到 44.4.5，代价是 Linux 产物自带的 Chromium
-  比上游发布的桌面端更新一点。
 - **没有自动更新。** 上游的强制更新策略通道只认 `desktop-win` / `desktop-mac` 客户端身份，
   Linux 产物也没有更新通道，所以 Linux 版不嵌入策略、不轮询、不会自己更新。
 - **没有「安装命令行工具」入口。** 官方桌面端在 macOS / Windows 上能从菜单把自带的 `dsh` CLI 装进

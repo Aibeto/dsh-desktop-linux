@@ -6,7 +6,7 @@
 #   ./scripts/dev-desktop.sh --no-devtools # 不自动弹 DevTools
 #
 # 前提与坑：
-#   1. 必须用 pnpm 11.7.0 —— 仓库的 pnpm-workspace.yaml 用了 pnpm 10+ 的
+#   1. 必须用 pnpm 11.28.5 —— 仓库的 pnpm-workspace.yaml 用了 pnpm 10+ 的
 #      overrides/allowBuilds/minimumReleaseAgeExclude，pnpm 9 会报
 #      ERR_PNPM_LOCKFILE_CONFIG_MISMATCH。
 #   2. 干净树上必须先跑一次 `pnpm run build`：dev.ts 的 import 是静态提升的，
@@ -46,7 +46,7 @@ if [[ -z "$PNPM" || "$("$PNPM" --version)" != 11.* ]]; then
     echo "==> 系统 pnpm 不是 11.x，改用隔离版：$PNPM ($("$PNPM" --version))"
   else
     echo "==> 需要 pnpm 11.x。安装隔离版：" >&2
-    echo "    npm i --prefix ~/.local/share/dsh-pnpm-11 pnpm@11.7.0" >&2
+    echo "    npm i --prefix ~/.local/share/dsh-pnpm-11 pnpm@11.28.5" >&2
     exit 1
   fi
 fi

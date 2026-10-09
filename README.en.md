@@ -75,7 +75,7 @@ upstream**, so `DSH_DESKTOP_LINUX_MAINTAINER=… build.sh --deb` is silently ign
 ### Hard requirement
 
 **pnpm 11 is required.** The upstream repository declares
-`packageManager: pnpm@11.7.0`, and pnpm 11 switches to that version by itself.
+`packageManager: pnpm@11.28.5`, and pnpm 11 switches to that version by itself.
 pnpm 9 fails `pnpm install` with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
 
 ## Arch package
@@ -180,13 +180,6 @@ Both tables below are kept up to date as reports come in — please tell us how 
   (`libfuse2` on Ubuntu 22.04) — or bypass the mount with
   `APPIMAGE_EXTRACT_AND_RUN=1 ./deepseek-harness-*.AppImage` (extracts to /tmp, about 1.2G extra).
   The deb, rpm and Arch packages are unaffected.
-- **Electron is newer than the version upstream's lockfile pins (44.4.5).** Upstream's
-  `apps/desktop/package.json` says `^44.0.0`, which the caret already allows, but its lockfile pins
-  the resolution to 44.0.0 — and that version's **tray item registers on neither KDE nor GNOME**
-  (upstream regression [electron#53213](https://github.com/electron/electron/issues/53213), fixed by
-  [electron#53214](https://github.com/electron/electron/pull/53214) only on 2026-08-26, while 44.0.0
-  was released on 08-25). Patch `0014` resolves the lockfile to 44.4.5; the cost is that Linux
-  artifacts carry a slightly newer Chromium than upstream's desktop releases.
 - **No auto-update.** Upstream's mandatory-update policy channel only recognises
   `desktop-win` / `desktop-mac` client identities, and Linux artifacts carry no
   update channel, so the Linux build embeds no policy, never polls, and never

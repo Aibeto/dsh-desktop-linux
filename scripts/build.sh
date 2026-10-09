@@ -29,7 +29,7 @@ fi
 
 [[ -d "$UPSTREAM/apps/desktop" ]] || { echo "找不到 $UPSTREAM/apps/desktop，先跑 fetch-upstream.sh" >&2; exit 1; }
 
-# --- pnpm 11（仓库要求 packageManager: pnpm@11.7.0）---
+# --- pnpm 11（仓库要求 packageManager: pnpm@11.28.5）---
 PNPM="$(command -v pnpm || true)"
 if [[ -z "$PNPM" || "$("$PNPM" --version)" != 11.* ]]; then
   FALLBACK="$HOME/.local/share/dsh-pnpm-11/node_modules/.bin/pnpm"
@@ -38,7 +38,7 @@ if [[ -z "$PNPM" || "$("$PNPM" --version)" != 11.* ]]; then
     echo "==> 系统 pnpm 不是 11.x，改用隔离版：$("$PNPM" --version)"
   else
     echo "==> 需要 pnpm 11.x。安装隔离版：" >&2
-    echo "    npm i --prefix ~/.local/share/dsh-pnpm-11 pnpm@11.7.0" >&2
+    echo "    npm i --prefix ~/.local/share/dsh-pnpm-11 pnpm@11.28.5" >&2
     exit 1
   fi
 fi
