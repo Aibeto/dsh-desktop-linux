@@ -55,6 +55,24 @@ CLI="$APPDSH/node_modules/@deepseek-ai/dsh/lib/bin.js"
 # 探测用的 node：用系统 node 读 built lib，不依赖产物里那份运行时。
 NODE="$(command -v node || true)"
 
+# $1 是不是本次启动的 Electron（$APP_PID）的后代：沿 ppid 链上溯。
+#
+# 回退分支必须带这条判据。跑着同一份产物时，另一个实例的 Host 命令行与 exe 跟本次那份逐字节相同，
+# 只按「命令行含 dsh-desktop-host」+「exe 是本次的 PRIMARY_NODE」筛进程会认领别人的进程，于是
+# 「App 起来了」「UI 加载出来了」「Host 跑在真 Node 上」这些断言验的其实是别人（2026-10-06 实测：
+# 并发实例的 CDP 端口 9224 被报成本次的 Web Host 端口，Host pid 与渲染进程数也跟着串了 —— 那次
+# 汇总仍是 31 通过，但活体那几条没有一个字是做给本次实例的）。
+is_app_descendant() {
+  local p="${1:-}" hops=0
+  [[ -n "${APP_PID:-}" && -n "$p" ]] || return 1
+  while [[ -n "$p" && "$p" != "0" && "$p" != "1" && $hops -lt 32 ]]; do
+    [[ "$p" == "$APP_PID" ]] && return 0
+    p="$(ps -o ppid= -p "$p" 2>/dev/null | tr -d '[:space:]')"
+    hops=$((hops + 1))
+  done
+  return 1
+}
+
 # 本次活体运行里 Web Host 实际监听的 127.0.0.1 端口（没有则返回非零）。
 #
 # 上游 0.2.1-alpha.1 起，桌面端默认端口从固定 19387 改成系统分配（apps/desktop-host 传
@@ -65,7 +83,8 @@ NODE="$(command -v node || true)"
 # 读不到才退回问监听表：谁是本产物 primary-runtime 那份 Node（Linux 上 Host 跑在它上面，见 0008）。
 # 退回时必须排掉 Electron 自己的监听 —— 它把 CDP 套接字的 fd 继承给了 Host 子进程，于是那个端口在
 # `ss` 里同时挂在 Electron 主进程与 Host 两个 pid 上（实测 Electron 的 9223 就是这样），
-# 只按「Host 的 pid 在监听」去找会把它误认成 Web Host，端口就报错了。
+# 只按「Host 的 pid 在监听」去找会把它误认成 Web Host，端口就报错了。还要排掉并发实例：回退
+# 认到的进程必须是本次 Electron 的后代（见 is_app_descendant）。
 desktop_host_port() {
   local p exe addr port
   if [[ -n "${LIVE:-}" && -f "$LIVE/app.log" ]]; then
@@ -75,6 +94,8 @@ desktop_host_port() {
   for p in $(pgrep -f 'dsh-desktop-host' 2>/dev/null); do
     exe="$(readlink -f "/proc/$p/exe" 2>/dev/null)"
     [[ "$exe" == "$(readlink -f "$PRIMARY_NODE")" ]] || continue
+    # 别的实例跑的是同一份 PRIMARY_NODE，只有血缘能把它们挡在外面。
+    is_app_descendant "$p" || continue
     while read -r addr; do
       port="${addr##*:}"
       if [[ -n "${APP_PID:-}" ]] && ss -ltnpH 2>/dev/null | grep -qE "127\.0\.0\.1:$port[^0-9].*pid=$APP_PID,"; then
@@ -86,7 +107,7 @@ desktop_host_port() {
   return 1
 }
 
-# 当前基线的版本：PKGBUILD 的 _tag 去掉 "dsh-v" 前缀（dsh-v0.2.1-alpha.1 → 0.2.1-alpha.1）。产物文件名、
+# 当前基线的版本：PKGBUILD 的 _tag 去掉 "dsh-v" 前缀（dsh-v0.2.1-alpha.2 → 0.2.1-alpha.2）。产物文件名、
 # 打包后的 package.json 用的都是这个版本。
 #
 # 为什么需要它：只跑了 build.sh --dir 时，$OUT 里还留着上一版基线的 AppImage/deb/rpm，原先的静态
@@ -372,9 +393,11 @@ CDP
       fi
 
       # Host 必须跑在 primary-runtime 自带的真 Node 上（Electron 的 node 模式下 sharp 会段错误）。
+      # 同样只认本次实例的后代：并发跑同构建的另一个实例时，它的 Host 也是这份 PRIMARY_NODE。
       host_pid=""
       for p in $(pgrep -f 'dsh-desktop-host' 2>/dev/null); do
-        if [[ "$(readlink -f "/proc/$p/exe" 2>/dev/null)" == "$(readlink -f "$PRIMARY_NODE")" ]]; then
+        if [[ "$(readlink -f "/proc/$p/exe" 2>/dev/null)" == "$(readlink -f "$PRIMARY_NODE")" ]] \
+          && is_app_descendant "$p"; then
           host_pid="$p"; break
         fi
       done
@@ -385,10 +408,13 @@ CDP
       fi
 
       # 沙箱：渲染进程在独立 user namespace 里且 seccomp 生效，主进程不在。
+      # 计数同样限定本次实例的后代，否则并发实例的渲染进程会把 $renderers 撑大，
+      # 那几条断言看起来通过，实际分子分母都不是本次这份。
       main_ns="$(readlink "/proc/$APP_PID/ns/pid" 2>/dev/null)"
       sandboxed=0; renderers=0
       for p in $(pgrep -f -- '--type=renderer' 2>/dev/null); do
         [[ "$(readlink -f "/proc/$p/exe" 2>/dev/null)" == "$(readlink -f "$APP")" ]] || continue
+        is_app_descendant "$p" || continue
         renderers=$((renderers+1))
         [[ "$(readlink "/proc/$p/ns/pid" 2>/dev/null)" != "$main_ns" ]] || continue
         grep -q '^Seccomp:\s*2' "/proc/$p/status" 2>/dev/null && sandboxed=$((sandboxed+1))
