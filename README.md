@@ -26,9 +26,11 @@ release target."*）。本项目补的就是这一块：让官方打包流水线
 
 ## 安装
 
+可从 [Releases](https://github.com/ffyfox/dsh-desktop-linux/releases) 下载 AppImage / deb / rpm 产物。
+
 | 发行版 | 格式 | 安装方式 |
 |---|---|---|
-| 通用 | AppImage | 从 [Releases](https://github.com/ffyfox/dsh-desktop-linux/releases) 下载，`chmod +x` 后直接运行 |
+| 通用 | AppImage | `chmod +x` 后直接运行 |
 | Debian / Ubuntu | deb | `sudo apt install ./deepseek-harness-*.deb` |
 | Fedora / RHEL | rpm | `sudo dnf install ./deepseek-harness-*.rpm` |
 | Arch Linux | PKGBUILD | 仓库自带，本地 `makepkg` 构建（未发布到 AUR），见 [Arch 包](#arch-包) |
@@ -104,7 +106,7 @@ Arch 包只出未打包目录装进 `/opt/deepseek-harness-desktop`，`/usr/bin/
 **关窗不会完全退出程序——这是上游的设计。** 上游 `main.ts` 拦截主窗口的 `close`
 并改为**隐藏**：Host 继续跑、正在跑的任务不中断，会话写锁也不释放。
 
-上游没有给 Linux 准备**「回到隐藏窗口」**或**「完全退出程序」**的路径。
+上游没有给 Linux 准备 **「回到隐藏窗口」** 或 **「完全退出程序」** 的路径。
 参考上游在其他平台的实现，补丁 `0013` 把托盘补上：图标常驻，带托盘菜单。
 
 - 找回窗口：托盘菜单「打开」，或再启动一次（第二次启动只聚焦已有实例）。
