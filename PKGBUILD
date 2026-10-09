@@ -12,15 +12,15 @@
 # 而不是 makepkg 那个起始目录变量名——写了字面量就会被报成 "File referenced in ..."，
 # 让 namcap 出假阳性。精确写法见 scripts/pkgbuild-dir.sh 的注释。
 #
-# 硬性前提：pnpm >= 11。仓库声明 packageManager: pnpm@11.7.0，pnpm 11 会自己切到该版本；
+# 硬性前提：pnpm >= 11。仓库声明 packageManager: pnpm@11.28.5，pnpm 11 会自己切到该版本；
 # pnpm 9 会报 ERR_PNPM_LOCKFILE_CONFIG_MISMATCH。
 
 pkgname=dsh-desktop-linux
-pkgver=0.2.1alpha1
-pkgrel=2
-_tag='dsh-v0.2.1-alpha.1'
-_commit='5badb15009ae1756c3afe0aecef1faafc290ccc'
-# GitHub 源码包的顶层目录名 = <repo>-<tag>，tag 自带的 "v" 不剥（实测 dsh-v0.2.1-alpha.1）
+pkgver=0.2.1alpha2
+pkgrel=1
+_tag='dsh-v0.2.1-alpha.2'
+_commit='d743267388641bc76f17c45ce8b4c231aed1d32c'
+# GitHub 源码包的顶层目录名 = <repo>-<tag>，tag 自带的 "v" 不剥（实测 dsh-v0.2.1-alpha.2）
 _srcdirname="deepseek-harness-$_tag"
 
 pkgdesc='Official DeepSeek Harness desktop application (Electron shell around a bundled dsh runtime)'
@@ -66,29 +66,27 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/deepseek-ai/deepseek-harnes
         '0011-desktop-linux-package-metadata.patch'
         '0012-desktop-build-commit-release-archive.patch'
         '0013-desktop-linux-tray.patch'
-        '0014-electron-version-tray-fix.patch'
         '0015-desktop-linux-hidden-overlay-reveal.patch'
         '0016-desktop-linux-caption.patch'
         # 补丁系列是文本 diff，装不下托盘 PNG —— GNU patch（makepkg 与 PKGBUILD 都用它）
         # 不支持 git 的二进制补丁。所以这张图作为普通本地 source 平铺过来，由 prepare() 放进源码树。
         'tray-linux.png')
-sha256sums=('b307d140074f0aab57d053a2a459efe40e1796e07a2ae3ba71dd178e39b2afa1'
+sha256sums=('f54cf0530ffba0ffb6bd00d08d5459918a1518cb77b22aa2b166a5dba234428a'
             '67a38b25575b2e4f3075eb0a516636db22795895eacf5ae9b6f3c13693a22f23'
-            '61fdd67082c398f05f4d879248aa7cde9d42edd53f395f017b7d741a68a40712'
-            '89ea7df4edbd9adb7f31cd3ae4e74e49a18922e721d57b825a516ca6fe09cf1d'
-            '9a98b425de64adc0ee5cf1ab93d548ac7e37b81e461a6a2ebde6691390931619'
-            '528b0ba6334fa4d3003756ee921708753204fc265a40e406ecbf25456cce9fe5'
-            '188c28b94fdd829f6d8cf8748d19d0d152cf9144ef8f3c51c2e5fd651a34507a'
-            'b78a49f2ca34679f78aad141f3d99ee74bec205b60d19b26fe9a1f0e69f88f2b'
-            '99465978a5313900c2722dea2b48463b0bb969a96c1c0b1591d371b052f9ea9a'
-            '62fca9bb192ccc7114f58b14245701a5b765cb16e46ec730c59e73570b87dbfd'
-            '062567a5bcd5f4d8e63368a98927055358318f428c88fb851846d64fb859db8e'
+            '85487924d256c1fac8e3881aa5fbd8128c1cfcbeb2dcf183dab3226385490923'
+            '55152fda20fc894b98a4340b10591a5cde3f49d189359fd3e69c9a794d78e023'
+            '16765e2195cd1c841bd485e01b277cf03a043bf3da779e97ce0b9f25ff65d1ca'
+            '4dcd5557a901ce2c8425a3330b87ead734da39d3810f6c6aa10dfa8dd8c79119'
+            'f05fb0198bf1ec2676dfd65c6f80450a575f5984adfe8c67f83d39515b70644f'
+            '6c4d69390d8526fdce0679156aeb7b87094fb44d32c770a5dfa2c9ab15812cc8'
+            'df8653adc7d2b915d8cbf16b84fd21e73fc5fce6a64ea6594616ad1e6d308344'
+            'bdaf28c6eb6ed454e8fcefe007279bc100b05cbffe567f87324069f6f03c25ff'
+            'e1c9243ca4c39b22db972d4b848671e7f5e0e77485c578c7ced3dbea83c2867b'
             'a3ff4a524a4ebe28551797bd36dab7b7139516e668462f054e616e8a521e3e8f'
             'd19ea9f506e2d0356a926ad2d20d67bab60511139fafb4e12f338d4d41739715'
-            '042117088d416a602985e595e768b2d921e98b64477eaa6a04383a958ae79ba3'
-            '702830e40816183cfaf2bc800957dbc93e90e0324eb93454f3ac01d3ce6cd1d9'
+            '9d6df66d3eb028f93d77aec3490ab8c42082c3cf9d8f6e386c5b8fce5ed11367'
             '9496d3d4c4c9741a396c940bd0babd97e1d58111da31ba746cf0a6061825adba'
-            'c010d4d51d03593000487f0f1997226cca6718253790f09a2c58d41776df9266'
+            'aff650e44c3ada4536c5aa65812ae8893714a5166dc3b4d7cd39b1183d0d2011'
             'd1153ab7bb1c61ca7f6568b4525f6c3f3c7bf9a9e29af1697f3c02da7dee5322')
 
 prepare() {
@@ -133,7 +131,7 @@ build() {
   local pnpm_version
   pnpm_version="$(pnpm --version)"
   if (( ${pnpm_version%%.*} < 11 )); then
-    error "需要 pnpm 11 或更新版本，当前是 $pnpm_version（上游声明 packageManager: pnpm@11.7.0；pnpm 9 会报 ERR_PNPM_LOCKFILE_CONFIG_MISMATCH）"
+    error "需要 pnpm 11 或更新版本，当前是 $pnpm_version（上游声明 packageManager: pnpm@11.28.5；pnpm 9 会报 ERR_PNPM_LOCKFILE_CONFIG_MISMATCH）"
     return 1
   fi
 

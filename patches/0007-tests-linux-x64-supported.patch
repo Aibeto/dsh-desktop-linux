@@ -54,7 +54,7 @@ index a5e9faf..933beaf 100644
    })
  })
 diff --git a/apps/desktop/tests/package-target.spec.ts b/apps/desktop/tests/package-target.spec.ts
-index c802f66..4f27143 100644
+index 5019841..785176e 100644
 --- a/apps/desktop/tests/package-target.spec.ts
 +++ b/apps/desktop/tests/package-target.spec.ts
 @@ -26,7 +26,11 @@ describe('desktop package target', () => {

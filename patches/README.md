@@ -1,30 +1,48 @@
 # 补丁
 
-按文件名顺序应用（见 `scripts/apply-patches.sh`），全部相对上游 `5badb15`（tag `dsh-v0.2.1-alpha.1`）。
+按文件名顺序应用（见 `scripts/apply-patches.sh`），全部相对上游 `d743267`（tag `dsh-v0.2.1-alpha.2`）。
 
 组织约定：**一个文件只属于一个补丁**。每个补丁都是相对同一个基线的独立 diff，
 互不重叠，因此应用顺序无关（仍按编号执行）。补丁由 `git diff -- <files>` 从开发工作树生成；
 两个补丁共用一个文件时（`electron-builder-config.mjs` 属 0003 与 0013，`src/main.ts` 属 0008、0013 与 0016），
 必须按「基线 + 只有这一个补丁」的隔离树取 diff，否则会把另一个补丁的 hunk 一起带进来。
 
-已验证（0.2.1-alpha.1）：15 个补丁按序打在完整的上游 release 源码包（tag `dsh-v0.2.1-alpha.1`）上，
+已验证（0.2.1-alpha.2）：15 个补丁按序打在完整的上游 release 源码包（tag `dsh-v0.2.1-alpha.2`）上，
 `patch -Np1`（makepkg 的 `prepare()`）与 `git apply`（`apply-patches.sh` / CI）都干净通过，
-49 个触及文件（44 个改动 + 5 个新增）与开发工作树逐字节一致；源码包本身也与 git 对象核对过
-（14194 个文件逐字节一致）。`pnpm install --frozen-lockfile` 与整条打包流水线在这棵树上通过，
-`build.sh --all` 出齐 AppImage/deb/rpm（0.2.1-alpha.1，electron 44.4.5），`makepkg` 也整包构建成功
-（`dsh-desktop-linux-0.2.1alpha1-1`，25921 个文件）；产物里 `resources/runtime/cli` 不存在，
-正是 0004 的 Linux 闸门在起作用。
-rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/desktop-host/src/index.ts`、
-`apps/desktop/package.json`），对应 0006 / 0008 / 0014 三个补丁重生，其余 12 个逐字节未动。
+50 个触及文件（46 个改动 + 4 个新增）与开发工作树逐字节一致（第 51 个是 `prepare()` 放置的托盘 PNG）；
+源码包本身也与 git 对象核对过（14988 个文件，除 3 个 `.cmd` 因上游 `.gitattributes` 的 CRLF 转换外
+逐字节一致）。`pnpm install --frozen-lockfile` 与整条打包流水线在这棵树上通过，`build.sh --all` 出齐
+AppImage / deb / rpm（344M / 291M / 229M），连打包后的冒烟也过 —— payload 的 koffi / sharp / html /
+pty / pnpm / ripgrep 全在场、CLI 离线装插件与卸载、`dsh web:` 起得来、Office 三种格式转 PDF。
+`verify.sh` 静态 20 项 + 活体 31 项全过；`makepkg` 也整包构建成功
+（`dsh-desktop-linux-0.2.1alpha2-1`，352M / 24085 个文件 —— 比 alpha.1 那份少 1800 多个，是上游新加的
+`prune-python-tests` 把 payload 里的 Python 测试文件裁掉了）。产物里 `resources/runtime/cli`
+不存在、`versions.json` 记的是 primary-runtime 的 Node 24.21.0，正是 0004 的 Linux 闸门与
+0008 的运行时选择在起作用。
 
-0.2.1alpha1 发布之后追加了 `0016`（16 个补丁、51 个触及文件 = 46 个改动 + 5 个新增）：
-从干净基线按序重放全部 16 个补丁，`git apply` 与 `patch -Np1` 都干净通过，被补丁触及的 50 个文件
-与开发工作树逐字节一致（第 51 个是 `prepare()` 放置的托盘 PNG）；`build.sh --dir` 从源码重建通过，
-产物里能查到 `setMenuBarVisibility`、放宽后的平台门，以及 `setTitleBarOverlay` 前面的 Windows 守卫。
-启动实测：用隔离 `DSH_HOME` + 独立 `--user-data-dir` 起这份产物，2 秒内日志出现 `dsh web:` 并
-建出 `profiles/`，窗口顶部是自绘的 caption 栏、没有原生菜单栏 —— 主窗口 1280x848 里客户区 820 与
-渲染视口 820 相等，中间没有被菜单栏吃掉的高度；未登录欢迎窗过去是「页面 600x700 + 29px 原生菜单栏」
-（客户区 600x729），现在是 600x729 全给页面（`useContentSize` 在隐藏菜单栏后不重算外框尺寸）。
+**编号 `0014` 已作废，空号不复用。** 它当年把 lockfile 里 electron 的解析从 44.0.0 提到 44.4.5
+（那个版本的 Linux 托盘在 KDE 与 GNOME 下都注册不上）；0.2.1-alpha.2 的 lockfile 自己解析到 44.7.0，
+上游的 `^44.7.0` 也已经不允许 44.4.5 —— 留着不只是多余，还会让 `pnpm install --frozen-lockfile`
+直接失败。所以删掉它，`0015` / `0016` 的编号保持不动：已推送的历史（`e8a3fcd` 的标题与正文）里
+点名的就是 `0015`，重编号只会让发布出去的文字与工作树对不上。
+
+上游同步记录：rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、
+`apps/desktop-host/src/index.ts`、`apps/desktop/package.json`），对应 0006 / 0008 / 0014 三个补丁重生，
+其余 12 个逐字节未动。0.2.1-alpha.1 → 0.2.1-alpha.2 上游动了 3226 个文件（+114987/−28177），
+11 个补丁触及的文件被改过而重生（0002 / 0003 / 0004 / 0005 / 0006 / 0007 / 0008 / 0009 / 0010 /
+0013 / 0016），0001 / 0011 / 0012 / 0015 四个逐字节未动。重生时上游的吸收与重构逐处裁定：
+`0002` / `0003` 里「放宽 `--unsigned` 的平台检查」被上游整条移除（unsigned 现在是通用的，macOS 也能出
+unsigned 构建），`0003` / `0005` 的 `policy` 条件要与上游新增的「本地 macOS unsigned 构建不嵌策略」
+合成一条，`0009` 的 `checkPnpm()` 被上游搬进新文件 `tests/fixtures/pnpm-smoke.mjs` 而跟着搬家，
+`0004` 的 `prepare-runtime.ts` 要落在上游拆分出的 `prepareElectron()` / `prepareCli()` 结构上
+（`runtime/bin/node` 的拷贝因此从 `prepareCli()` 里提出来，Linux 仍然要有这个启动器）。
+
+`0016` 启动实测（0.2.1-alpha.2 这份产物；用隔离 `DSH_HOME` + 独立 `--user-data-dir` 起，KWin 读
+`frameGeometry` / `clientGeometry`，CDP 读渲染视口）：主窗口 frame 1280x848、客户区 1280x820、
+视口 820；欢迎窗 frame 600x757、客户区 600x729、视口 729。两个窗口的「客户区 − 视口」都是 0，
+即都没有原生菜单栏（`frame − client` 的 28px 是 KWin 画的装饰），主窗口页面里能读到
+`data-windows-titlebar`，自绘 caption 生效。欢迎窗在加 `0016` 之前是「页面 600x700 + 29px 原生菜单栏」，
+现在 600x729 全给页面（`useContentSize` 在隐藏菜单栏后不重算外框尺寸）。
 **第一版 `0016` 没有那个守卫**，
 在 Linux 上主进程会抛 `Titlebar overlay is not enabled` 并弹异常框，表现为「窗口在、Host 不启动」，
 原因与排查见「注意」。
@@ -34,8 +52,8 @@ rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/deskt
 | 补丁 | 覆盖文件 | 内容 |
 |---|---|---|
 | `0001-desktop-target-model-add-linux-x64.patch` | `desktop-build-paths.{mjs,d.mts}`、`desktop-auto-update-environment.{mjs,d.mts}` | target 白名单加 `linux-x64`；`desktopTargetPlatform` 返回 `'linux'`；新增 `desktopElectronExecutablePath()` |
-| `0002-package-target-add-linux-x64.patch` | `package-target.ts`、`desktop-upload-plan.ts` | 打包目标表加 `linux-x64`；Linux 构建主机校验；放宽 `--unsigned` |
-| `0003-electron-builder-linux-configuration.patch` | `electron-builder-config.mjs` | 允许 unsigned 的 Linux 构建；Linux 关闭 asar；显式 `executableName`；Linux 不嵌入强制更新策略；Linux 的打包格式与包元数据来自发布设置（见 `0011`）；显式钉住 deb/rpm 的 `packageName` / `packageCategory` 与 `linux.synopsis`；用 `appImage.executableArgs: []` 去掉 legacy 工具集写死的 `--no-sandbox`；Linux 图标显式指定为 SVG —— 单个 PNG 文件会被 electron-builder **原样按自身像素尺寸**装进 `hicolor/1024x1024/apps`，而多个发行版的 `hicolor/index.theme` 并不声明该目录（Arch 就没有），图标会解析不到；SVG 落到 `hicolor/scalable/apps`，所有发行版都声明 |
+| `0002-package-target-add-linux-x64.patch` | `package-target.ts`、`desktop-upload-plan.ts` | 打包目标表加 `linux-x64`；Linux 构建主机校验（当初还放宽了 `--unsigned` 的平台限制，0.2.1-alpha.2 起上游把那条限制整条删掉，这一半随之消失） |
+| `0003-electron-builder-linux-configuration.patch` | `electron-builder-config.mjs` | Linux 关闭 asar；显式 `executableName`；Linux 不嵌入强制更新策略；Linux 的打包格式与包元数据来自发布设置（见 `0011`）；显式钉住 deb/rpm 的 `packageName` / `packageCategory` 与 `linux.synopsis`；用 `appImage.executableArgs: []` 去掉 legacy 工具集写死的 `--no-sandbox`；Linux 图标显式指定为 SVG —— 单个 PNG 文件会被 electron-builder **原样按自身像素尺寸**装进 `hicolor/1024x1024/apps`，而多个发行版的 `hicolor/index.theme` 并不声明该目录（Arch 就没有），图标会解析不到；SVG 落到 `hicolor/scalable/apps`，所有发行版都声明 |
 | `0004-prepare-target-electron-distribution.patch` | `prepare-dsh.ts`、`prepare-runtime.ts` | Electron 分发路径按 target 推导，不再假设「非 mac 即 win32」；打包期 `pnpm install` / 运行时冒烟改用 Host 运行时；`versions.json.node` 记为 payload 实际运行的 Node 版本；Linux 上整块跳过 rc.2 新增的 `prepare:cli`（见「注意」） |
 | `0005-desktop-linux-release-settings.patch` | `desktop-package-environment.{mjs,d.mts}`、`desktop-toolchain-preflight.ts`、`.gitignore`、`.env.linux.example`、`tests/desktop-package-environment.spec.ts` | 支持 `.env.linux`；Linux 不套用 Windows/macOS 专属设置；Linux 不要求策略 origin；修掉 `win32 ? … : macOS` 的隐含假设；Linux 文件白名单加 `MAINTAINER`/`HOMEPAGE`（并从环境里剥掉，保证发布设置只由文件拥有）；打了 rpm 才预检 `rpmbuild` |
 | `0006-desktop-package-linux-scripts.patch` | `apps/desktop/package.json` | `package:linux:x64` / `package:linux:x64:dir` |
@@ -45,8 +63,8 @@ rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/deskt
 
 | 补丁 | 覆盖文件 | 内容 |
 |---|---|---|
-| `0008-desktop-host-runtime-standalone-node.patch` | `src/node-environment.ts`、`src/host-process.ts`、`src/main.ts`、`desktop-host/src/index.ts`、`scripts/node-bin/node`、4 个 spec | 引入 `DesktopNodeRuntime`；Linux 上 Host 走 primary-runtime 的真 Node；`ELECTRON_RUN_AS_NODE` 只在真 Electron 运行时下设置 |
-| `0009-desktop-packaging-host-runtime.patch` | `scripts/dev.ts`、`scripts/smoke-{runtime,prepared-runtime,packaged-runtime}.ts`、`scripts/sign-primary-runtime.ts`、`tests/fixtures/runtime-payload-smoke.mjs`、`tests/prepared-runtime-smoke.spec.ts` | 把 Host 运行时贯穿 dev / 打包 / 冒烟；payload smoke 的 Electron 专属断言改为按平台判断 |
+| `0008-desktop-host-runtime-standalone-node.patch` | `src/node-environment.ts`、`src/host-process.ts`、`src/main.ts`、`desktop-host/src/{index,cli}.ts`、`scripts/node-bin/node`、4 个 spec | 引入 `DesktopNodeRuntime`；Linux 上 Host 走 primary-runtime 的真 Node；`ELECTRON_RUN_AS_NODE` 只在真 Electron 运行时下设置；`dsh` CLI 在「真目录树」布局下按 `resources/runtime` 找 supportDir（关掉 asar 后原来那段推导会落到 `resources/app/runtime`，见「注意」） |
+| `0009-desktop-packaging-host-runtime.patch` | `scripts/dev.ts`、`scripts/smoke-{runtime,prepared-runtime,packaged-runtime}.ts`、`scripts/sign-primary-runtime.ts`、`tests/fixtures/{runtime-payload-smoke,pnpm-smoke}.mjs`、`tests/prepared-runtime-smoke.spec.ts` | 把 Host 运行时贯穿 dev / 打包 / 冒烟；payload smoke 的 Electron 专属断言改为按平台判断 |
 | `0010-desktop-linux-policy-opt-out.patch` | `desktop-policy-environment.{mjs,d.mts}`、`tests/desktop-policy-environment.spec.ts` | 新增 `desktopPlatformEmbedsPolicy()`：策略服务只认 `desktop-win` / `desktop-mac`，Linux 不参与 |
 
 ## 产物与包元数据（0011–0012）
@@ -60,13 +78,11 @@ rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/deskt
 `0003` 拿去配 electron-builder，`0005` 拿去做打包最前面的预检。按「一个文件只属于一个补丁」，
 规则本身单独成一个补丁。
 
-## 让 Linux 也有托盘（0013–0014）
+## 让 Linux 也有托盘（0013）
 
 | 补丁 | 覆盖文件 | 内容 |
 |---|---|---|
 | `0013-desktop-linux-tray.patch` | `src/main.ts`、`src/tray.ts`、`src/background-notice.ts`、`scripts/electron-builder-config.mjs`、`scripts/render-tray-icon.ts` | 托盘的创建条件从只认 `win32` 放宽到 `win32 \|\| linux`；Linux 的托盘图是 `resources/tray-linux.png`（单张 PNG，托盘宿主自己缩放到面板；**用应用图标自身的留白，不做 Windows 那 20% 放大**，见「注意」）；首次关窗的一次性提示同样覆盖 Linux —— 它的文案本来就是「可在系统托盘中重新打开窗口」，在 Linux 上这句话只有有了托盘才成立；渲染器除 ICO 之外也输出那张 PNG；electron-builder 的 Linux `extraResources` 把它带进产物的 `resources/` |
-| `0014-electron-version-tray-fix.patch` | `pnpm-lock.yaml` | 把 lockfile 里 electron 的解析从 `44.0.0` 提到 `44.4.5`。上游 `apps/desktop/package.json` 本来就写 `^44.0.0`（caret 就允许 44.4.5），只是 lockfile 把解析钉在 44.0.0 —— 而那个版本的 Linux 托盘在 KDE 与 GNOME 下都注册不上（上游回归，见「注意」）。改动只有 4 行：importer 的 `version`、`packages` 段的版本名与 integrity、`snapshots` 段的版本名；两个版本的依赖范围逐字相同，所以传递依赖一行都不用动 |
-
 托盘 PNG 是二进制，`patches/` 装不下：makepkg 用的是 GNU patch，它不支持 git 的二进制补丁。
 所以这张图作为普通本地 `source` 走，仓库里存在 `assets/tray-linux.png`，由两条路径各自放进
 `apps/desktop/resources/`：PKGBUILD 的 `prepare()`（`makepkg` 路线）和 `scripts/apply-patches.sh`
@@ -117,6 +133,13 @@ rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/deskt
   `command-manager-entry.js` 走 `/usr/local/bin/dsh` 与 PowerShell；而 rc.2 里触发这套东西的菜单项
   本身就 gate 在 `darwin` / `win32`。Linux 上没有入口，硬跑还会把 macOS 启动器塞进产物，
   所以这一段包进 `if (platform !== 'linux')`，Linux 不产出 `runtime/cli`。
+- **`dsh` CLI 找 runtime 的路径取决于 asar 开不开（`0008` 的教训）。** `apps/desktop-host/src/cli.ts`
+  自己推 supportDir：打成 asar 时 payload 在 `resources/app.asar/dsh`，runtime 就挨着归档文件
+  （`resources/runtime`）；Linux 关掉 asar 后 payload 是真实的 `resources/app/dsh`，同一段推导
+  会指向 `resources/app/runtime` —— 那里没有 pnpm，`dsh … plugin` 直接 `MODULE_NOT_FOUND`。
+  所以非 asar 分支改为上一级找 `resources/runtime`。上游 0.2.1-alpha.2 新增的打包后冒烟
+  （直接跑 `resources/app/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js plugin …`）
+  正好踩在这个入口上，才把它暴露出来。
 - **`0015` 的根因是量出来的，不是猜的。** 用 `--remote-debugging-port=9222 --inspect=9229` 起应用，
   从主进程读 `BrowserWindow.getAllWindows()`：关窗后浮层窗口存在、`modal: true`、内容与按钮位置都对，
   但 `isVisible()` 是 `false`；手动 `show()` 一次即正常显示且可用鼠标点。Debian 13（GNOME 48.7）与
