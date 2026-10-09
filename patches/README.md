@@ -4,7 +4,7 @@
 
 组织约定：**一个文件只属于一个补丁**。每个补丁都是相对同一个基线的独立 diff，
 互不重叠，因此应用顺序无关（仍按编号执行）。补丁由 `git diff -- <files>` 从开发工作树生成；
-两个补丁共用一个文件时（`electron-builder-config.mjs` 属 0003 与 0013，`src/main.ts` 属 0008 与 0013），
+两个补丁共用一个文件时（`electron-builder-config.mjs` 属 0003 与 0013，`src/main.ts` 属 0008、0013 与 0016），
 必须按「基线 + 只有这一个补丁」的隔离树取 diff，否则会把另一个补丁的 hunk 一起带进来。
 
 已验证（0.2.1-alpha.1）：15 个补丁按序打在完整的上游 release 源码包（tag `dsh-v0.2.1-alpha.1`）上，
@@ -16,6 +16,18 @@
 正是 0004 的 Linux 闸门在起作用。
 rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/desktop-host/src/index.ts`、
 `apps/desktop/package.json`），对应 0006 / 0008 / 0014 三个补丁重生，其余 12 个逐字节未动。
+
+0.2.1alpha1 发布之后追加了 `0016`（16 个补丁、51 个触及文件 = 46 个改动 + 5 个新增）：
+从干净基线按序重放全部 16 个补丁，`git apply` 与 `patch -Np1` 都干净通过，被补丁触及的 50 个文件
+与开发工作树逐字节一致（第 51 个是 `prepare()` 放置的托盘 PNG）；`build.sh --dir` 从源码重建通过，
+产物里能查到 `setMenuBarVisibility`、放宽后的平台门，以及 `setTitleBarOverlay` 前面的 Windows 守卫。
+启动实测：用隔离 `DSH_HOME` + 独立 `--user-data-dir` 起这份产物，2 秒内日志出现 `dsh web:` 并
+建出 `profiles/`，窗口顶部是自绘的 caption 栏、没有原生菜单栏 —— 主窗口 1280x848 里客户区 820 与
+渲染视口 820 相等，中间没有被菜单栏吃掉的高度；未登录欢迎窗过去是「页面 600x700 + 29px 原生菜单栏」
+（客户区 600x729），现在是 600x729 全给页面（`useContentSize` 在隐藏菜单栏后不重算外框尺寸）。
+**第一版 `0016` 没有那个守卫**，
+在 Linux 上主进程会抛 `Titlebar overlay is not enabled` 并弹异常框，表现为「窗口在、Host 不启动」，
+原因与排查见「注意」。
 
 ## 让 Linux 成为受支持的 target（0001–0007）
 
@@ -70,6 +82,17 @@ rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/deskt
 
 `0015` 是 `0013` 的下游：Linux 的首次关窗提示是 `0013` 打开的，而它用的正是这个浮层。
 
+## 让 Linux 的标题栏与 Windows 一致（0016）
+
+| 补丁 | 覆盖文件 | 内容 |
+|---|---|---|
+| `0016-desktop-linux-caption.patch` | `src/main.ts`、`src/preload-windows.ts`、`src/welcome-window.ts` | Linux 借用 Windows 的 caption：`createWindow()` 里对 Linux 关掉原生菜单栏（`setMenuBarVisibility(false)`，application menu 仍挂着，所以菜单项与加速键都还在）；preload 的平台门从只认 `win32` 放宽到 `win32 \|\| linux`，页面因此拿到 `data-windows-titlebar` 并挂上「应用 / 编辑」两个自绘菜单按钮。这两个按钮点开的是原生弹窗，走 Windows 那条 `DESKTOP_IPC.windowsMenu`，所以那个 IPC 块与右键菜单的角色标签也一起放宽到 Linux —— 角色项（`undo` / `copy` / `selectAll` …）因此改用 DSH 字典里的标签，不再回落 Electron 内置的英文角色名。`windowsAppearance` 这个 handler 里真正碰 Electron API 的那一句（`setTitleBarOverlay`）**仍只归 Windows**：窗口的 `titleBarOverlay` 只在 `win32 && primary` 时创建，Linux 上调它必抛异常（见「注意」），所以只放宽菜单与语言同步，不放宽 overlay 上色。未登录的欢迎窗是另一条 `new BrowserWindow()` 路径（`welcome-window.ts`），那个窗口里没有页面内 caption 条，Linux 的原生菜单栏会在标题栏下面独自占一条，所以也一并关掉 |
+
+这是**半统一**：窗口装饰一律不动（KDE 是 KWin 的装饰插件、GNOME 是 Mutter 画的、平铺窗口管理器
+本来就没有装饰），只把网页内那一条 caption 对齐 Windows。Linux 的 in-page 菜单与 Windows 共用
+同一套属性与度量（`data-windows-titlebar`、`--dsh-windows-titlebar-height: 40px`、
+`--dsh-windows-menu-start`，见 `preload-menu.ts`），所以客户端一个字都没改。
+
 ## 注意
 
 - **dev 模式也需要 `0001`**——`dev.ts` 虽然不走 `package-target.ts`，
@@ -115,3 +138,19 @@ rc.2 → 0.2.1-alpha.1 只有 3 个文件变过（`pnpm-lock.yaml`、`apps/deskt
   那里会显得鲸鱼顶满方块。所以 `renderLinuxTrayIcon()` 按原比例渲（保留应用图标自身的留白，
   与启动器/任务栏图标观感一致），底图仍然保留，深浅面板都还有对比度。两边同源（都用
   `resources/icon-windows.svg`），改动只在渲染参数上。
+- **`0016` 是「借属性」，不是「改名」。** caption 布局在客户端里是按 `html[data-windows-titlebar]`
+  这个选择器激活的（`ui-sidebar` 与 `ui-layout` 里十几处 CSS/TSX 都在 `:global([data-windows-titlebar])`
+  下），改名要连同一批测试一起动。所以这里只放宽平台门，代价是这些名字在 Linux 上名不副实；
+  等上游哪天给 Linux 做自己的 caption，再统一命名。
+- **`0016` 与 `0008`、`0013` 共用 `src/main.ts`**，所以它同样按开头那条约定、在「基线 + 只有这一个补丁」
+  的隔离树里取 diff（`git diff --no-index` 两棵树，再改回 `a/`、`b/` 前缀）。
+- **借 Windows 属性时，Windows 专属的 Electron 调用必须单独守卫（`0016` 的教训）。** caption 的
+  布局与菜单是纯客户端行为，照搬无害；但 `windowsAppearance` 这个 handler 里有一句
+  `mainWindow.setTitleBarOverlay(...)`，而窗口的 `titleBarOverlay` 只在 `win32 && primary` 时创建。
+  Linux 上调它抛 `TypeError: Titlebar overlay is not enabled` —— 这是主进程里**未捕获**的异常，
+  由 IPC 监听器抛出，不是启动链自己抛的；而启动链的顺序是先 `await navigateMain(...)` 建主窗口、
+  再 `backend.start(...)` 拉起 Host，异常正好落在这两步之间，于是 **Host 从未被拉起**：主窗口已显示、
+  `dsh web:` 永远不出现、`$DSH_HOME/profiles/` 不生成，连 `--remote-debugging-port` 的端点也只接受
+  连接不回数据。**别把它误判成死锁或产物问题**：主进程其实空闲在 `poll`（~0.6% CPU）。排查靠
+  `xdotool search --pid <pid>` 找到那个名叫 `Error` 的窗口，再 `import -window <id>` 抓下来读原文；
+  探 DevTools 之前记得先摘掉本机的 `NODE_USE_ENV_PROXY`/`http_proxy`，否则 `127.0.0.1` 也会被代理拦掉。

@@ -1,0 +1,75 @@
+diff --git a/apps/desktop/src/main.ts b/apps/desktop/src/main.ts
+index b4b8153..42d6b47 100644
+--- a/apps/desktop/src/main.ts
++++ b/apps/desktop/src/main.ts
+@@ -236,6 +236,9 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
+       devTools: true,
+     },
+   })
++  // Linux draws the caption menubar inside the page; a native menu bar would double that strip.
++  // The application menu stays set so its accelerators keep working.
++  if (process.platform === 'linux') window.setMenuBarVisibility(false)
+   window.webContents.setWindowOpenHandler(({ url }) => {
+     if (['http:', 'https:'].includes(new URL(url).protocol)) void shell.openExternal(url)
+     return { action: 'deny' }
+@@ -294,7 +297,8 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
+       const messages = currentDesktopLocale().messages
+       Menu.buildFromTemplate(items.map(item => ({
+         ...item,
+-        ...(process.platform === 'win32' && item.role !== undefined && item.role in messages
++        ...((process.platform === 'win32' || process.platform === 'linux')
++          && item.role !== undefined && item.role in messages
+           ? { label: messages[item.role as keyof typeof messages] } : {}),
+         accelerator: '',
+       }))).popup({ window })
+@@ -1006,7 +1010,8 @@ async function main(): Promise<void> {
+     ...(process.platform === 'win32' ? { icon: nativeImage.createFromPath(trayIconPath) } : {}),
+   })
+ 
+-  if (process.platform === 'win32') {
++  // Linux's caption menubar opens the same native popups; Windows also reports its overlay colours here.
++  if (process.platform === 'win32' || process.platform === 'linux') {
+     ipcMain.handle(DESKTOP_IPC.windowsMenu, (event, name: unknown, x: unknown, y: unknown) => {
+       assertDesktopSender(event, ['app'])
+       if (mainWindow === undefined || event.sender !== mainWindow.webContents
+@@ -1049,7 +1054,8 @@ async function main(): Promise<void> {
+       // Empty colors precede client stylesheet installation; only CSS color values cross IPC.
+       const validColor = (value: unknown): value is string => typeof value === 'string'
+         && /^(?:#[\da-f]{3,8}|rgba?\([\d.,%\s]+\))$/iu.test(value)
+-      if (validColor(color) && validColor(symbolColor)) mainWindow.setTitleBarOverlay({ color, symbolColor })
++      // The overlay exists only on Windows primary windows; Linux borrows the caption menubar alone.
++      if (process.platform === 'win32' && validColor(color) && validColor(symbolColor)) mainWindow.setTitleBarOverlay({ color, symbolColor })
+     })
+   }
+ 
+diff --git a/apps/desktop/src/preload-windows.ts b/apps/desktop/src/preload-windows.ts
+index 5b9ed75..f17cbdb 100644
+--- a/apps/desktop/src/preload-windows.ts
++++ b/apps/desktop/src/preload-windows.ts
+@@ -4,9 +4,11 @@ import { ipcRenderer } from 'electron'
+ import { DESKTOP_IPC } from './ipc.ts'
+ import { installWindowsMenu } from './preload-menu.ts'
+ 
+-/** Install the Windows-only titlebar marker and observe application language and palette changes. */
++/** Install the caption titlebar marker and observe application language and palette changes. */
+ export function syncWindowsAppearance(): void {
+-  if (process.platform !== 'win32') return
++  // Linux hides the native menu bar and draws the caption menubar inside the page, so it needs
++  // the same marker and appearance reporting as Windows.
++  if (process.platform !== 'win32' && process.platform !== 'linux') return
+   const mark = (): void => {
+     const root = document.documentElement
+     root.dataset.windowsTitlebar = ''
+diff --git a/apps/desktop/src/welcome-window.ts b/apps/desktop/src/welcome-window.ts
+index 61fda9e..364f580 100644
+--- a/apps/desktop/src/welcome-window.ts
++++ b/apps/desktop/src/welcome-window.ts
+@@ -59,6 +59,8 @@ let disposeActiveHandlers: (() => void) | undefined
+ export async function openWelcomeWindow(locale: DesktopLocale, operations: WelcomeOperations): Promise<BrowserWindow> {
+   const options = welcomeWindowOptions(process.platform, locale)
+   const window = new BrowserWindow(options)
++  // This window carries no caption menubar, so on Linux the native one would sit alone under the titlebar.
++  if (process.platform === 'linux') window.setMenuBarVisibility(false)
+   disposeActiveHandlers?.()
+   let active = true
+   const disposeHandlers = (): void => {
