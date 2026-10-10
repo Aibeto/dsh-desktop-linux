@@ -8,8 +8,8 @@
 必须按「基线 + 只有这一个补丁」的隔离树取 diff，否则会把另一个补丁的 hunk 一起带进来。
 
 已验证（0.2.1-alpha.2）：15 个补丁按序打在完整的上游 release 源码包（tag `dsh-v0.2.1-alpha.2`）上，
-`patch -Np1`（makepkg 的 `prepare()`）与 `git apply`（`apply-patches.sh` / CI）都干净通过，
-50 个触及文件（46 个改动 + 4 个新增）与开发工作树逐字节一致（第 51 个是 `prepare()` 放置的托盘 PNG）；
+`patch -Np1`（makepkg 的 `prepare()`）与 `git apply`（`apply-patches.sh` / CI）都干净通过（无 fuzz、
+无 reject），52 个触及文件（48 个改动 + 4 个新增）与开发工作树逐字节一致，`prepare()` 另外放置托盘 PNG；
 源码包本身也与 git 对象核对过（14988 个文件，除 3 个 `.cmd` 因上游 `.gitattributes` 的 CRLF 转换外
 逐字节一致）。`pnpm install --frozen-lockfile` 与整条打包流水线在这棵树上通过，`build.sh --all` 出齐
 AppImage / deb / rpm（344M / 291M / 229M），连打包后的冒烟也过 —— payload 的 koffi / sharp / html /
@@ -72,7 +72,7 @@ unsigned 构建），`0003` / `0005` 的 `policy` 条件要与上游新增的「
 | 补丁 | 覆盖文件 | 内容 |
 |---|---|---|
 | `0011-desktop-linux-package-metadata.patch` | `desktop-linux-packages.{mjs,d.mts}`、`tests/desktop-linux-packages.spec.ts` | 新增 `resolveDesktopLinuxFormats()`（`DSH_DESKTOP_TARGET_FORMATS`，缺省只出 AppImage）与 `resolveDesktopLinuxPackageMetadata()`（deb/rpm 必须给 `Name <email>` 形式的 maintainer 和绝对 http(s) homepage，两者一起报错） |
-| `0012-desktop-build-commit-release-archive.patch` | `desktop-build-commit.mjs`、`tests/desktop-build-commit.spec.ts` | `readDesktopBuildCommit()` 在目录不是 git checkout 时读 `DSH_DESKTOP_BUILD_COMMIT` / `_DIRTY`，两者都没有才报错。上游从 checkout 构建，distro 打包从 release 源码包构建，后者没有 `.git` |
+| `0012-desktop-build-commit-release-archive.patch` | `desktop-build-commit.{mjs,d.mts}`、`tests/desktop-build-commit.spec.ts` | `readDesktopBuildCommit()` 先认环境里记下的 `DSH_DESKTOP_BUILD_COMMIT` / `_DIRTY`（打包入口读一次、再传给每个子进程，子进程跑在构建树上），没有才读 git checkout，两者都没有才报错。上游从 checkout 构建，distro 打包从 release 源码包构建，后者没有 `.git`，而它的构建树常常就落在打包仓库自己的工作树里（见「注意」） |
 
 `0003` 消费 `0011`，`0005` 也消费 `0011`：格式选择和包元数据的**规则**只有一份（`0011`），
 `0003` 拿去配 electron-builder，`0005` 拿去做打包最前面的预检。按「一个文件只属于一个补丁」，
@@ -109,6 +109,31 @@ unsigned 构建），`0003` / `0005` 的 `policy` 条件要与上游新增的「
 同一套属性与度量（`data-windows-titlebar`、`--dsh-windows-titlebar-height: 40px`、
 `--dsh-windows-menu-start`，见 `preload-menu.ts`），所以客户端一个字都没改。
 
+## Arch 包与 deb/rpm 构建树的差异（无害）
+
+同一份上游代码、两套构建入口（`build.sh` 在 `upstream/` 里出 AppImage / deb / rpm，`makepkg` 在
+`pkgbuild/src/deepseek-harness-dsh-<tag>/` 里出 Arch 包）产出的树不逐字节相同。除 `package.json` 里
+`dshBuildCommit` 记错那处真缺陷（已由 `0012` 修掉）外，其余差异**全部同源**：客户端打包会把源码
+绝对路径写进 CSS-module 产物，路径一变，派生的哈希与清单跟着变。
+
+| 差异 | alpha.2 实测规模 | 为什么无害 |
+|---|---|---|
+| 打包后 JS 里的 `\0dsh-css:` / `\0dsh-inline-css:` / `\0dsh-global-css:` **绝对路径注释**，以及由它派生的 CSS-module **类名前缀**（`.pnC3sa_row` → `.hlg3va_row`，CSS 正文逐字相同） | 54 个文件（48 × `client.js` + `devtools_app.js` + `client.{excel,frontmatter-fields,pdf,terminal,page}.js`） | 注释是构建期元数据，类名两侧各自自洽 |
+| devtools 的**哈希 chunk 文件名** | 94 对改名 | 文件名 = 内容哈希，引用它的清单同步生成 |
+| `desktop-runtime.json` / `resource-manifest.json` 里上述文件的 `bytes` / `sha256` | 2 个文件 | 记的是各自树里的真实值 |
+
+另有两处**有意为之**的不同，既不是缺陷也不是疏漏：
+
+- `resources/app/package.json` 的 `homepage` 只在有 fpm 目标（deb/rpm）时写入
+  （`electron-builder-config.mjs` 的 `linuxPackages === undefined ? {} : { homepage }`）；Arch 包是
+  `--dir` 构建，不需要 deb/rpm 的 control 字段。
+- `resources/apparmor-profile` 同理只由 fpm 的 deb/rpm target 拷进 `linux-unpacked`；Arch 包改在
+  发行版标准位置提供等价 profile：`/etc/apparmor.d/deepseek-harness`（见 `PKGBUILD` 的 `package()`）。
+
+这些差异都不影响运行：`dshBuildCommit` / `dshBuildDirty` 是上游写进清单的溯源字段（production 上传
+据此决定要不要给 `desktop-v<版本>` 打标签），安装树里没有代码读它；`homepage` 只被 electron-builder
+用来填 deb/rpm 的 control。
+
 ## 注意
 
 - **dev 模式也需要 `0001`**——`dev.ts` 虽然不走 `package-target.ts`，
@@ -124,9 +149,18 @@ unsigned 构建），`0003` / `0005` 的 `policy` 条件要与上游新增的「
   `build.sh --deb` 被文件里的值盖掉。
 - **`0012` 是唯一为「非 git 源码」存在的补丁**。上游两条路都要 git：`scripts/build.ts` 经
   `repositoryCommitHash()` 读 `HEAD`（有 `DSH_CLIENT_COMMIT_HASH` 环境变量出口，不用改），
-  `package-target.ts:364` 无条件调 `readDesktopBuildCommit()`（没有出口，所以要 `0012`）。
-  PKGBUILD 从 release 源码包构建，所以两个变量都由它显式给出，`_DIRTY=1` 也是事实——这个
-  构建确实打了补丁。
+  `apps/desktop/scripts/package-target.ts` 的打包入口无条件调 `readDesktopBuildCommit()`（没有出口，
+  所以要 `0012`）。PKGBUILD 从 release 源码包构建，所以两个变量都由它显式给出，`_DIRTY=1` 也是事实
+  ——这个构建确实打了补丁。
+- **`0012` 的判据必须是「环境变量优先」，不能只作「不是 checkout 时的兜底」。** makepkg 的 `$srcdir`
+  是 `pkgbuild/src/deepseek-harness-dsh-<tag>/`，而 `pkgbuild/` 就在本仓库里，
+  `git rev-parse --is-inside-work-tree` 探针会成功，于是「先探针」的写法把**本仓库的 HEAD** 当成
+  上游提交写进 `dshBuildCommit`：alpha.2 那份 Arch 包实测记 `a99ac6be…`，应记 `d7432673…`
+  （deb/rpm/AppImage 不受影响，`build.sh` 从 `upstream/` 构建、根本不设这两个变量）。
+- **补丁按序应用时只有 offset、没有 fuzz，但会留下两个 `.orig`。** `electron-builder-config.mjs`
+  （0003 + 0013）与 `src/main.ts`（0008 + 0013 + 0016）被多个补丁触及，它们的 diff 取自「基线 +
+  只有这一个补丁」的隔离树，所以后一个补丁落下去时命中 offset；GNU patch 遇到 offset 会各留一份
+  `<文件>.orig`。备份不进产物，两个文件最终内容与开发工作树逐字节一致。
 - **rc.2 新增的 `prepare:cli` 在 Linux 上整块跳过（`0004`）。** `prepareDesktopCli(dir, platform)` 的
   形参是 `'darwin' | 'win32'`（不含 `linux`），它拷的 `apps/desktop/cli/dsh` 是 macOS 脚本
   （内部 exec `$resources/../MacOS/DeepSeek Harness`），`link-entry` 要 clang 编译，

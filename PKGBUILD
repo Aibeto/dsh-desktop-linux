@@ -83,7 +83,7 @@ sha256sums=('f54cf0530ffba0ffb6bd00d08d5459918a1518cb77b22aa2b166a5dba234428a'
             'bdaf28c6eb6ed454e8fcefe007279bc100b05cbffe567f87324069f6f03c25ff'
             'e1c9243ca4c39b22db972d4b848671e7f5e0e77485c578c7ced3dbea83c2867b'
             'a3ff4a524a4ebe28551797bd36dab7b7139516e668462f054e616e8a521e3e8f'
-            'd19ea9f506e2d0356a926ad2d20d67bab60511139fafb4e12f338d4d41739715'
+            '2a48cc7e75591f89e5e26606b4ce34b6e00db4891c4725ec171287af1f84fc50'
             '9d6df66d3eb028f93d77aec3490ab8c42082c3cf9d8f6e386c5b8fce5ed11367'
             '9496d3d4c4c9741a396c940bd0babd97e1d58111da31ba746cf0a6061825adba'
             'aff650e44c3ada4536c5aa65812ae8893714a5166dc3b4d7cd39b1183d0d2011'
@@ -122,8 +122,9 @@ build() {
 
   # 上游平时从 git checkout 读这两个值（scripts/client-build-environment.ts 的
   # repositoryCommitHash、apps/desktop/scripts/desktop-build-commit.mjs 的
-  # readDesktopBuildCommit）。release 源码包里没有 .git，所以显式给出；补丁 0012 让
-  # 后者在不是 checkout 时接受环境变量。dirty=1 是事实：这个构建确实打了补丁。
+  # readDesktopBuildCommit）。release 源码包里没有 .git，所以显式给出；补丁 0012 让环境里
+  # 记下的这一对优先于 git —— 否则 makepkg 的 $srcdir 落在本仓库工作树里，探针会成功，
+  # 把本仓库的 HEAD 当成上游提交记进产物。dirty=1 是事实：这个构建确实打了补丁。
   export DSH_CLIENT_COMMIT_HASH="$_commit"
   export DSH_DESKTOP_BUILD_COMMIT="$_commit"
   export DSH_DESKTOP_BUILD_DIRTY=1
