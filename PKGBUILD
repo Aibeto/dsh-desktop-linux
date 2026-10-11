@@ -117,6 +117,13 @@ prepare() {
 build() {
   cd "$_srcdirname"
 
+  # pnpm 12 的版本自管理按 PATH 顺序挑入口：交互 shell 常把 PNPM_HOME 的 shim 排在前面，
+  # 它自切换到 packageManager 声明的版本后，给 run-script 注入的 npm_execpath 指向
+  # package-manager-store 里的 @pnpm/exe —— 那是 ELF，而打包流水线用 `node $npm_execpath`
+  # 复起 pnpm（package-target.ts 的 runPnpm），node 加载 ELF 直接 SyntaxError。
+  # 把 /usr/bin 钉到最前，保证 npm_execpath 落在 Arch 的 JS 入口上。
+  export PATH="/usr/bin:$PATH"
+
   # 隔离的 dsh 数据目录：构建期 Host 会往这里写东西，绝不能落到用户真实的 ~/.dsh。
   export DSH_HOME="$srcdir/dsh-home"
 
