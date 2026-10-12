@@ -134,6 +134,14 @@ patch `0013` adds the tray: the icon stays for the whole run and carries a tray 
   only focuses the instance that is already running).
 - To really quit: the tray menu's "Quit", the `Application` → `Quit` menu item, or `Ctrl+Q`.
 
+### Plugin market host version
+
+The plugin market reads the host version correctly ("Host version unknown" is fixed by patch
+`0017`): on Linux the Host process is a standalone Node (see patch `0008`) and has no Electron
+`process.resourcesPath`, so dsh-market's host lookup came up empty. `0017` passes the packaged
+resources root to the Host and republishes it there; the lookup works again, and so do the
+compatibility filter and "update to a compatible version".
+
 ## Validation status
 
 **Only a few environments have been tested so far, and we intend to widen that coverage.**

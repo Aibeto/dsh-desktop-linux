@@ -68,6 +68,7 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/deepseek-ai/deepseek-harnes
         '0013-desktop-linux-tray.patch'
         '0015-desktop-linux-hidden-overlay-reveal.patch'
         '0016-desktop-linux-caption.patch'
+        '0017-desktop-host-resources-path.patch'
         # 补丁系列是文本 diff，装不下托盘 PNG —— GNU patch（makepkg 与 PKGBUILD 都用它）
         # 不支持 git 的二进制补丁。所以这张图作为普通本地 source 平铺过来，由 prepare() 放进源码树。
         'tray-linux.png')
