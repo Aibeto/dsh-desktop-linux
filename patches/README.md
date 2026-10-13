@@ -4,7 +4,7 @@
 
 组织约定：**一个文件只属于一个补丁**。每个补丁都是相对同一个基线的独立 diff，
 互不重叠，因此应用顺序无关（仍按编号执行）。补丁由 `git diff -- <files>` 从开发工作树生成；
-两个补丁共用一个文件时（`electron-builder-config.mjs` 属 0003 与 0013，`src/main.ts` 属 0008、0013 与 0016），
+两个补丁共用一个文件时（`electron-builder-config.mjs` 属 0003 与 0013，`src/main.ts` 属 0008、0013、0016 与 0017），
 必须按「基线 + 只有这一个补丁」的隔离树取 diff，否则会把另一个补丁的 hunk 一起带进来。
 
 已验证（0.2.1-alpha.2）：15 个补丁按序打在完整的上游 release 源码包（tag `dsh-v0.2.1-alpha.2`）上，
@@ -108,6 +108,12 @@ unsigned 构建），`0003` / `0005` 的 `policy` 条件要与上游新增的「
 本来就没有装饰），只把网页内那一条 caption 对齐 Windows。Linux 的 in-page 菜单与 Windows 共用
 同一套属性与度量（`data-windows-titlebar`、`--dsh-windows-titlebar-height: 40px`、
 `--dsh-windows-menu-start`，见 `preload-menu.ts`），所以客户端一个字都没改。
+
+## 让插件市场认得宿主版本（0017）
+
+| 补丁 | 覆盖文件 | 内容 |
+|---|---|---|
+| `0017-desktop-host-resources-path.patch` | `src/node-environment.ts`、`src/main.ts`、`desktop-host/src/index.ts`、2 个 spec | Linux 的 Host 跑在 primary-runtime 的真 Node 上（0008），进程里没有 Electron 的 `process.resourcesPath`，dsh-market 的宿主探测（`dshHostInfo()`，靠它认出 `resources/app/dsh/node_modules/@deepseek-ai/dsh`）两路全落空 → 市场全程「宿主版本未知」。现在 shell 把打包安装的 resources 根随 `DesktopNodeRuntime.resourcesPath` 交给 Host（`desktopNodeEnvironment()` 只对 standalone 运行时展开成 `DSH_DESKTOP_RESOURCES_PATH`），Host 入口在 Electron 之外把它回填成 `process.resourcesPath` —— dsh-market 的 Electron 探测分支原样命中，#778 的嵌套候选天然覆盖本布局。Electron 运行时一字未动：它自带真值，且子进程里的值永远优先 |
 
 ## Arch 包与 deb/rpm 构建树的差异（无害）
 
